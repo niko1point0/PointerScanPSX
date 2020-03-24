@@ -176,7 +176,12 @@ void Test()
 }
 
 #include <vector>
-std::vector<int> pointers;
+struct pointer
+{
+	int address;
+	int offset;
+};
+std::vector<pointer> pointers;
 
 int main()
 {
@@ -191,9 +196,15 @@ int main()
 
 	std::vector<int>addresses;
 
-	printf("Press 1 to enter value, or 2 to enter address: ");
-	int choice;
-	scanf("%d", &choice);
+	int choice = 0;
+
+	while (true)
+	{
+		printf("Press 1 to enter value, or 2 to enter address: ");
+		scanf("%d", &choice);
+
+		if (choice == 1 || choice == 2) break;
+	}
 
 	if (choice == 1)
 	{
@@ -225,53 +236,104 @@ int main()
 
 	for (int a = 0; a < addresses.size(); a++)
 	{
-		printf("%d / %d\n", a + 1, addresses.size());
+		printf("Address %d / %d\n", a + 1, addresses.size());
 
-		for (int i = 0; i < 2000000; i += 4)
+		for (int o = 0; o < 2048 /*addresses[a]*/; o+= 4)
 		{
-			int startAddress = addresses[a];
+			printf("Offset %d / %d\n", o, 2048);
 
-			int possiblePointer;
-			ReadProcessMemory(handle, (PBYTE*)(baseAddress + 0xA82020 + i), &possiblePointer, sizeof(int), NULL);
-			possiblePointer = possiblePointer & 0xFFFFFF;
+			int startAddress = addresses[a] - o;
 
-			if (possiblePointer == startAddress)
+			for (int i = 0; i < addresses[a]; i += 4)
 			{
-				printf("Found pointer at PSX Address (hex): %p\n", i);
+				int possiblePointer;
+				ReadProcessMemory(handle, (PBYTE*)(baseAddress + 0xA82020 + i), &possiblePointer, sizeof(int), NULL);
+				possiblePointer = possiblePointer & 0xFFFFFF;
 
-				// add pointer to list
-				pointers.push_back(i);
+				if (possiblePointer == startAddress)
+				{
+					printf("Found pointer at PSX Address (hex): %p + %p\n", i, o);
+
+					pointer x;
+					x.address = i;
+					x.offset = o;
+
+					// add pointer to list
+					pointers.push_back(x);
+				}
 			}
 		}
 	}
 	
 	while (true)
 	{
-		printf("Enter Value to search (dec): ");
-		
-		unsigned short searchVal;
-		scanf("%hu", &searchVal);
+		int choice = 0;
 
-		for (int i = 0; i < pointers.size(); i++)
+		while (true)
 		{
-			// get address from pointer
-			unsigned int address;
-			ReadProcessMemory(handle, (PBYTE*)(baseAddress + 0xA82020 + pointers[i]), &address, sizeof(address), NULL);
-			address = address & 0xFFFFFF;
+			printf("Press 1 to enter value, or 2 to enter address: ");
+			scanf("%d", &choice);
+		
+			if (choice == 1 || choice == 2) break;
+		}
 
-			// get value from address
-			unsigned short scanVal;
-			ReadProcessMemory(handle, (PBYTE*)(baseAddress + 0xA82020 + address), &scanVal, sizeof(scanVal), NULL);
+		if (choice == 1)
+		{
+			printf("Enter Value to search (dec): ");
 
-			if (scanVal != searchVal)
+			unsigned short searchVal;
+			scanf("%hu", &searchVal);
+
+			for (int i = 0; i < pointers.size(); i++)
 			{
-				printf("Pointer %p deleted\n", pointers[i]);
-				pointers.erase(pointers.begin() + i);
-				i--;
+				// get address from pointer
+				unsigned int address;
+				ReadProcessMemory(handle, (PBYTE*)(baseAddress + 0xA82020 + pointers[i].address), &address, sizeof(address), NULL);
+				address = address & 0xFFFFFF;
+				address += pointers[i].offset;
+
+				// get value from address
+				unsigned short scanVal;
+				ReadProcessMemory(handle, (PBYTE*)(baseAddress + 0xA82020 + address), &scanVal, sizeof(scanVal), NULL);
+
+				if (scanVal != searchVal)
+				{
+					printf("Pointer %p + %p deleted\n", pointers[i].address, pointers[i].offset);
+					pointers.erase(pointers.begin() + i);
+					i--;
+				}
+			}
+		}
+
+		if (choice == 2)
+		{
+			printf("Enter Adress to search (hex): ");
+
+			unsigned int searchVal;
+			scanf("%p", &searchVal);
+
+			for (int i = 0; i < pointers.size(); i++)
+			{
+				// get address from pointer
+				unsigned int address;
+				ReadProcessMemory(handle, (PBYTE*)(baseAddress + 0xA82020 + pointers[i].address), &address, sizeof(address), NULL);
+				address = address & 0xFFFFFF;
+				address += pointers[i].offset;
+
+				// get value from address
+				// unsigned short scanVal;
+				// ReadProcessMemory(handle, (PBYTE*)(baseAddress + 0xA82020 + address), &scanVal, sizeof(scanVal), NULL);
+
+				if (address != searchVal)
+				{
+					printf("Pointer %p + %p deleted\n", pointers[i].address, pointers[i].offset);
+					pointers.erase(pointers.begin() + i);
+					i--;
+				}
 			}
 		}
 
 		for (int i = 0; i < pointers.size(); i++)
-			printf("Pointer %p remains\n", pointers[i]);
+			printf("Pointer %p + %p remains\n", pointers[i].address, pointers[i].offset);
 	}
 }
