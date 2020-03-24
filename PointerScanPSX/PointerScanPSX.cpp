@@ -94,7 +94,7 @@ void initialize()
 	GetWindowRect(console, &r); //stores the console's current dimensions
 
 	// 300 + height of bar (25)
-	MoveWindow(console, r.left, r.top, 400, 325, TRUE);
+	MoveWindow(console, r.left, r.top, 600, 360, TRUE);
 
 	printf("Step 1: Open ePSXe.exe\n");
 	printf("Step 2: Open Crash Team Racing SCUS_94426\n");
@@ -189,34 +189,65 @@ int main()
 	// 0008D688 holds the value 001DD0D0
 	// At Address 001DD0D0 is value 62531
 
-	printf("Enter Address to search: ");
+	std::vector<int>addresses;
 
-	int startAddress;
-	scanf("%p", &startAddress);
+	printf("Press 1 to enter value, or 2 to enter address: ");
+	int choice;
+	scanf("%d", &choice);
 
-	//Test();
-	//system("pause");
-
-
-	for (int i = 0; i < 2000000; i += 4)
+	if (choice == 1)
 	{
-		int possiblePointer;
-		ReadProcessMemory(handle, (PBYTE*)(baseAddress + 0xA82020 + i), &possiblePointer, sizeof(int), NULL);
-		possiblePointer = possiblePointer & 0xFFFFFF;
-		//printf("%p\n", possiblePointer);
+		printf("Enter Value to search (dec): ");
+		unsigned short desiredValue;
+		scanf("%hu", &desiredValue);
 
-		if (possiblePointer == startAddress)
+		// Can this be i += 2, or 4?
+		for (int i = 0; i < 2000000; i++)
 		{
-			printf("Found pointer at PSX Address: %p\n", i);
-			
-			// add pointer to list
-			pointers.push_back(i);
+			unsigned short searchVal;
+			ReadProcessMemory(handle, (PBYTE*)(baseAddress + 0xA82020 + i), &searchVal, sizeof(searchVal), NULL);
+
+			if (searchVal == desiredValue)
+			{
+				printf("Value found at address: %p\n", i);
+				addresses.push_back(i);
+			}
+		}
+	}
+
+	if (choice == 2)
+	{
+		printf("Enter Address to search (hex): ");
+		int enter;
+		scanf("%p", &enter);
+		addresses.push_back(enter);
+	}
+
+	for (int a = 0; a < addresses.size(); a++)
+	{
+		printf("%d / %d\n", a + 1, addresses.size());
+
+		for (int i = 0; i < 2000000; i += 4)
+		{
+			int startAddress = addresses[a];
+
+			int possiblePointer;
+			ReadProcessMemory(handle, (PBYTE*)(baseAddress + 0xA82020 + i), &possiblePointer, sizeof(int), NULL);
+			possiblePointer = possiblePointer & 0xFFFFFF;
+
+			if (possiblePointer == startAddress)
+			{
+				printf("Found pointer at PSX Address (hex): %p\n", i);
+
+				// add pointer to list
+				pointers.push_back(i);
+			}
 		}
 	}
 	
 	while (true)
 	{
-		printf("Enter value to search: ");
+		printf("Enter Value to search (dec): ");
 		
 		unsigned short searchVal;
 		scanf("%hu", &searchVal);
@@ -231,8 +262,6 @@ int main()
 			// get value from address
 			unsigned short scanVal;
 			ReadProcessMemory(handle, (PBYTE*)(baseAddress + 0xA82020 + address), &scanVal, sizeof(scanVal), NULL);
-
-			printf("%hu\n", scanVal);
 
 			if (scanVal != searchVal)
 			{
