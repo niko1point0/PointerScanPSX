@@ -238,7 +238,10 @@ int main()
 	{
 		printf("Address %d / %d\n", a + 1, addresses.size());
 
-		for (int o = 0; o < 2048 /*addresses[a]*/; o+= 4)
+		// Not += 4 for offset
+		// What if you have a structure with chars,
+		// then offset is not multiple of 4
+		for (int o = 0; o < 2048 /*addresses[a]*/; o++)
 		{
 			printf("Offset %d / %d\n", o, 2048);
 
